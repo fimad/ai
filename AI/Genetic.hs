@@ -1,17 +1,23 @@
 module AI.Genetic (
+  -- * Basic Usage
   -- * Classes and Types
     DNA (..)
   , Fitness
+  -- ** Simulation Settings
   , GeneticSettings (..)
   , defaultSettings
+  -- * Simulations
+  , evolve
   -- * Breeding Functions
   , crossover
 )
 where
 
+import Data.List
 import System.Random
 import Data.Word as W
 
+-- | A typeclass that represents a solution that can be found using a genetic algorithm.
 class DNA a where
   -- | encodes a solution a as a list of doubles.
   encode :: a -> [b]
@@ -21,6 +27,8 @@ class DNA a where
 -- | Fitness is a positive Double. Larger values correspond with better fitness.
 type Fitness = Double
 
+
+-- | Settings for how a simulation should be run.
 data GeneticSettings d = GeneticSettings {
     maxIterations :: Int -- ^ The maximum number of iterations to run before giving up. 
   , targetFitness :: Double -- ^ The simulation will stop once the required portion of the population reaches this level.
@@ -40,6 +48,32 @@ defaultSettings = GeneticSettings {
   , breeding = crossover
   , fitness = map (\x -> (x,0)) -- a dummy fitness function, should never actually be used
 }
+
+
+-- | Runs the simulation and returns the best solution.
+evolve :: (DNA d) => StdGen -> GeneticSettings d -> [d] -> d
+evolve gen settings initialPopulation = best
+  where
+    populationSize = length initialPopulation
+    finalPopulation = run 0 gen initialPopulation
+    (best,_) = maximumBy (\(_,a) (_,b) -> compare a b) finalPopulation
+
+    --step :: (DNA d) => StdGen -> [d] -> (StdGen,[(d,Fitness)])
+    step gen population = (gen,(fitness settings) population)
+
+    --breed :: (DNA d) => StdGen -> [d] -> (StdGen,[d])
+    breed gen population = (gen,population)
+
+    --run :: Int -> StdGen -> [d] -> [(d,Fitness)]
+    run iteration gen population
+        | iteration+1 >= (maxIterations settings)       = population' -- stop at max iterations
+        | percentOverTarget >= (targetPercent settings) = population' -- stop at found fitness
+        | otherwise                                     = run (iteration+1) gen' $ map fst population' --keep going
+          where
+            (gen',population') = step gen population -- next population
+            numOverTarget = fromIntegral $ length $ filter (\(_,f) -> f >= (targetFitness settings)) population'
+            percentOverTarget = numOverTarget / (fromIntegral $ length population')
+
 
 -- | Performs simple crossover breeding. N-1 pivots in the DNA are chosen, where N is the number of parents. Children are created by all combinations of resulting parent segments.
 crossover :: (DNA d) => StdGen -> [d] -> (StdGen, [d])
