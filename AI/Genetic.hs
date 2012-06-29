@@ -1,36 +1,33 @@
 module AI.Genetic (
-  -- * Basic Usage
+  -- | A library that implements a genetic search algorithm.
+
   -- * Classes and Types
-    DNA (..)
-  , Fitness
+    Fitness
   -- ** Simulation Settings
   , GeneticSettings (..)
   , defaultSettings
   -- * Simulations
   , evolve
+  , randomPopulation
   -- * Breeding Functions
+  -- | Each breeding function implements a simple genetic operation, and may be composed with others to create more powerful operations.
   , crossover
+  , mutation
 )
 where
 
 import Data.List
+import Control.Monad
 import System.Random
 import System.Random.Shuffle
 import Data.Word as W
-
--- | A typeclass that represents a solution that can be found using a genetic algorithm.
-class DNA a where
-  -- | encodes a solution a as a list of doubles.
-  encode :: a -> [b]
-  -- | takes an genetic encoding of a solution and returns the corresponding solution.
-  decode :: [b] -> a
+import Data.Tuple as T
 
 -- | Fitness is a positive Double. Larger values correspond with better fitness.
 type Fitness = Double
 
-
 -- | Settings for how a simulation should be run.
-data GeneticSettings d b = GeneticSettings {
+data GeneticSettings b = GeneticSettings {
     maxIterations :: Int -- ^ The maximum number of iterations to run before giving up. 
   , targetFitness :: Double -- ^ The simulation will stop once the required portion of the population reaches this level.
   , targetPercent :: Double -- ^ The amount of the population that must reach the target fitness.
@@ -39,18 +36,27 @@ data GeneticSettings d b = GeneticSettings {
 }
 
 -- | sane defaults
-defaultSettings :: (DNA d) => GeneticSettings d b
+defaultSettings :: (Random b, Eq b) => GeneticSettings b
 defaultSettings = GeneticSettings {
     maxIterations = 100
-  , targetFitness = 0.9
-  , targetPercent = 0.9
+  , targetFitness = 1
+  , targetPercent = 0.00000000001
   , maxParents = 2
-  , breeding = crossover
+  , breeding = crossover . (mutation 0.001)
 }
 
+-- | Generates a random population, the solution type must be a member of the Random class.
+randomPopulation :: (Random b, Integral i) => StdGen -> i -> i -> [[b]]
+randomPopulation gen dnaSize populationSize = snd $ mapAccumL (\gen' rs -> rs gen') gen $ replicate (fromIntegral populationSize) randomSolution
+  where
+    randomSolution gen = mapAccumL (\gen' r -> swap $ r gen') gen $ replicate (fromIntegral dnaSize) random
 
 -- | Runs the simulation and returns the best solution.
-evolve :: (DNA d) => StdGen -> GeneticSettings d b -> ([d] -> [(d,Fitness)]) -> [d] -> d
+evolve :: (Eq b) => StdGen
+  -> GeneticSettings b -- ^ Settings for running the simulation, 'defaultSettings' are sane defaults.
+  -> ([[b]] -> [([b],Fitness)]) -- ^ The fitness function for ranking potential solutions.
+  -> [[b]] -- ^ The initial population.
+  -> [b] -- ^ Resulting best solution found by the simulation.
 evolve gen settings fitness initialPopulation = best
   where
     populationSize = length initialPopulation
@@ -62,17 +68,16 @@ evolve gen settings fitness initialPopulation = best
       where
         (gen',population') = breed gen population
 
-    --breed :: (DNA d) => StdGen -> [(d,Fitness)] -> (StdGen,[d])
+    --breed :: ([b] d) => StdGen -> [(d,Fitness)] -> (StdGen,[d])
     breed gen population = (gen',population')
       where
-        encodedPopulation = map (\(d,f) -> (encode d,f)) population
-        (gen',infEncodedPopulationList) = mapAccumL (\g b -> b (getParents g)) gen $ repeat (breeding settings)
-        population' = map decode $ take populationSize $ concat infEncodedPopulationList 
+        (gen',infEncodedPopulationList) = mapAccumL (\g b -> b (getParents g)) gen $ replicate populationSize (breeding settings)
+        population' = take populationSize $ concat infEncodedPopulationList 
 
         --getParents :: StdGen -> (StdGen,[[b]])
         getParents g = (g', take (maxParents settings) parents)
           where
-            ((g',_), parents) = mapAccumL (\acc pp -> pp acc) (g,encodedPopulation) $ replicate populationSize pickParent
+            ((g',_), parents) = mapAccumL (\acc pp -> pp acc) (g,population) $ replicate (maxParents settings) pickParent
 
             --pickParent :: (StdGen,[[b]]) -> ((StdGen,[[b]]),[b])
             pickParent (g,population) = ((g',population'), parent)
@@ -96,24 +101,37 @@ evolve gen settings fitness initialPopulation = best
             percentOverTarget = numOverTarget / (fromIntegral $ length population')
 
 
--- | Performs simple crossover breeding. N-1 pivots in the DNA are chosen, where N is the number of parents. Children are created by all combinations of resulting parent segments.
-crossover :: (StdGen, [[b]]) -> (StdGen, [[b]])
+-- | Performs simple crossover breeding. N-1 pivots in the [b] are chosen, where N is the number of parents. Children are created by all combinations of resulting parent segments.
+crossover :: (Eq b) => (StdGen, [[b]]) -> (StdGen, [[b]])
 crossover (gen,parents) = (gen',children)
   where
     (gen',dividedParents) = splitParents gen (length parents - 1) parents
     children = combine dividedParents
 
     -- Creates pivot points and splits parents along the pivots.
-    splitParents :: StdGen -> Int -> [[b]] -> (StdGen,[[[b]]])
-    splitParents gen 0 _ = (gen,[])
+    --splitParents :: StdGen -> Int -> [[b]] -> (StdGen,[[[b]]])
+    splitParents gen 0 parents = (gen,[parents])
     splitParents gen i parents = (gen'', heads : tails)
       where
         (r,gen') = next gen
-        pivot = r `mod` ((length $ head parents) - (length parents))
+        pivot = r `mod` ((length $ head parents) - (length parents)+1)+1
         heads = map (take pivot) parents
         (gen'',tails) = splitParents gen' (i-1) $ map (drop pivot) parents
 
     -- Combinatorially combines the parent segments to create the offspring.
-    combine :: [[[b]]] -> [[b]]
-    combine [] = []
-    combine (x:xs) = x >>= (\x -> map (x++) $ combine xs)
+    --combine :: [[[b]]] -> [[b]]
+    combine = filter (\x -> not $ elem x parents) . foldM (\acc x -> map (acc++) x) []
+
+
+-- | Randomly mutates genes at a given frequency.
+mutation :: (Random b)
+  => Double -- ^ Frequency at which genes are mutated, must be between 0 and 1. By partially applying the frequency, the result is a composable genetic operation.
+  -> (StdGen, [[b]])
+  -> (StdGen, [[b]])
+mutation frequency (gen,parents) = mapAccumL (\gen' bs -> mapAccumL mutateGene gen' bs) gen parents
+  where
+    --mutateGene :: StdGen -> b -> (StdGen,b)
+    mutateGene gen b = if r <= frequency then T.swap $ random gen' else (gen,b)
+      where
+        (r,gen') = randomR (0.0,1.0) gen
+
