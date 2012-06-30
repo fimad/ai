@@ -8,7 +8,6 @@ where
 import Data.List
 import Control.Monad
 import System.Random
-import Data.Word as W
 import Data.Tuple as T
 
 -- | Performs simple k-point crossover breeding. N-1 pivots in each parent [b] are chosen, where N is the number of parents. Children are then created from all combinations of resulting parent segments.

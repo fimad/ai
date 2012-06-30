@@ -13,11 +13,10 @@ where
 import Data.List
 import Control.Monad
 import System.Random
-import System.Random.Shuffle
-import Data.Word as W
 import Data.Tuple as T
 import AI.Genetic.Breeding
 import AI.Genetic.Selection
+import System.Random.Shuffle
 
 -- | Fitness is a positive Double. Larger values correspond with better fitness.
 type Fitness = Double
