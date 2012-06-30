@@ -6,6 +6,8 @@ import Data.Maybe
 import Data.List
 import System.Random
 
+-- Code for handling expressions
+
 data Expr = Num Int | Plus | Minus deriving (Eq,Show)
 
 instance Random Expr where
@@ -14,6 +16,9 @@ instance Random Expr where
     (1,gen') -> (Plus,gen')
     (2,gen') -> (Minus,gen')
   randomR _ = random
+
+
+-- Two ways of calculating intial populations are shown, a naive way using the generic randomPopulation and one using randomSolution which only generates valid expressions.
 
 -- faster than random _ :: Expr because it will only generate valid solutions.
 randomSolution :: StdGen -> Int -> (StdGen,[Expr])
@@ -43,6 +48,10 @@ eval _ = Nothing
 
 validExpr :: [Expr] -> Bool
 validExpr = isJust . eval
+
+
+-- Running the genetic search
+
 
 -- | fitness function scores a potential solution from 0 to 1.
 fitness goal expr = case eval expr of
