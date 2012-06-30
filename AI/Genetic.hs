@@ -6,6 +6,7 @@ module AI.Genetic (
   , defaultSettings
   , evolve
   , randomPopulation
+  , fitnessMap
 )
 where
 
@@ -33,14 +34,14 @@ data GeneticSettings b = GeneticSettings {
   , selection :: (StdGen,[([b],Fitness)]) -> ((StdGen,[([b],Fitness)]),[b]) -- ^ The selection function determines how parents are chosen from the population for breeding. See "AI.Genetic.Selection" for options.
 }
 
--- | sane defaults
+-- | Reasonable defaults that can be passed to 'evolve'.
 defaultSettings :: (Random b, Eq b) => GeneticSettings b
 defaultSettings = GeneticSettings {
     maxIterations = 100
   , targetFitness = 1
   , targetPercent = 0.00000000001
   , maxParents = 2
-  , maxChildren = 1
+  , maxChildren = 2
   , validDNA = (\_ -> True)
   , breeding = crossover . (mutation 0.001)
   , selection = rouletteWheel
@@ -49,12 +50,26 @@ defaultSettings = GeneticSettings {
 -- | Generates a random population, the solution type must be a member of the Random class.
 randomPopulation :: (Random b, Integral i)
   => StdGen
+  -> GeneticSettings b -- ^ a genetic settings needs to be passed in so that the validDNA function maybe used.
   -> i -- ^ The length of the dna to generate.
   -> i -- ^ The size of the population.
   -> [[b]]
-randomPopulation gen dnaSize populationSize = snd $ mapAccumL (\gen' rs -> rs gen') gen $ replicate (fromIntegral populationSize) randomSolution
+randomPopulation gen settings dnaSize populationSize =
+    take (fromIntegral populationSize)
+  $ filter (validDNA settings)
+  $ snd
+  $ mapAccumL (\gen' rs -> rs gen') gen
+  $ repeat randomSolution
   where
     randomSolution gen = mapAccumL (\gen' r -> swap $ r gen') gen $ replicate (fromIntegral dnaSize) random
+
+
+-- | Takes a fitness function that operates on a single solution and returns a fitness function suitable for use with 'evolve'.
+fitnessMap ::
+  ([b] -> Fitness) -- ^ A function that returns the fitness for a single solution
+  -> ([[b]] -> [([b],Fitness)]) -- ^ A fitness function suitable for use with this library.
+fitnessMap f = map (\x -> (x,f x))
+
 
 -- | Runs the simulation and returns the best solution.
 evolve :: (Eq b) => StdGen
@@ -84,7 +99,10 @@ evolve gen settings fitness initialPopulation = best
             ((g',_), parents) = mapAccumL (\acc pp -> pp acc) (g,population) $ replicate (maxParents settings) (selection settings)
 
         --filters out bad children and randomly discards down to maxChildren if needed
-        pickChildren (gen,children) = (gen,take (maxChildren settings) $ filter (validDNA settings) $ shuffle' children (length children) gen)
+        pickChildren (gen,children) = (gen,take (maxChildren settings) randomChildren)
+          where
+            validChildren = filter (validDNA settings) children
+            randomChildren = if null validChildren then [] else shuffle' validChildren (length validChildren) gen
 
     --run :: Int -> StdGen -> [d] -> [(d,Fitness)]
     run iteration gen population
