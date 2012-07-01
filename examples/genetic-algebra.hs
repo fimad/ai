@@ -10,6 +10,20 @@ import System.Random
 
 data Expr = Num Int | Plus | Minus deriving (Eq,Show)
 
+eval :: [Expr] -> Maybe Int
+eval [] = Nothing
+eval [(Num a)] = Just a
+eval ((Num a):Plus:(Num b):xs) = eval $ (Num (a+b)):xs
+eval ((Num a):Minus:(Num b):xs) = eval $ (Num (a-b)):xs
+eval _ = Nothing
+
+validExpr :: [Expr] -> Bool
+validExpr = isJust . eval
+
+
+-- Two ways of calculating intial populations are shown, a naive way using the generic randomPopulation and one using randomSolution which only generates valid expressions.
+
+-- 1
 instance Random Expr where
   random gen = case randomR (0::Int,2) gen of
     (0,gen') -> let (i,gen'') = randomR (0,100) gen' in (Num i,gen'')
@@ -17,9 +31,7 @@ instance Random Expr where
     (2,gen') -> (Minus,gen')
   randomR _ = random
 
-
--- Two ways of calculating intial populations are shown, a naive way using the generic randomPopulation and one using randomSolution which only generates valid expressions.
-
+--2
 -- faster than random _ :: Expr because it will only generate valid solutions.
 randomSolution :: StdGen -> Int -> (StdGen,[Expr])
 randomSolution gen 0 = (gen,[])
@@ -38,16 +50,6 @@ infRandomPopulation gen exprSize = snd $ mapAccumL (\gen r -> r gen exprSize) ge
 
 fastRandomPopulation :: StdGen -> Int -> Int -> [[Expr]]
 fastRandomPopulation gen exprSize populationSize = take populationSize $ infRandomPopulation gen exprSize
-
-eval :: [Expr] -> Maybe Int
-eval [] = Nothing
-eval [(Num a)] = Just a
-eval ((Num a):Plus:(Num b):xs) = eval $ (Num (a+b)):xs
-eval ((Num a):Minus:(Num b):xs) = eval $ (Num (a-b)):xs
-eval _ = Nothing
-
-validExpr :: [Expr] -> Bool
-validExpr = isJust . eval
 
 
 -- Running the genetic search
