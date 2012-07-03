@@ -3,6 +3,7 @@ module AI.NN.Activation (
     ActivationFunction (..)
   , activate
   , alwaysOnAF
+  , linearAF
   , heavysideAF
   , sigmoidAF
   , sigmoidScaledAF
@@ -34,6 +35,11 @@ alwaysOn' x = 0
 -- | Used as AF for the bias neuron to allow thresholds to be trained as weights. Not terribly useful outside of that though.
 alwaysOnAF :: ActivationFunction
 alwaysOnAF = Derivable alwaysOn alwaysOn'
+
+
+-- | Linear activation function is 'id'. Its only real use is in the input layer.
+linearAF :: ActivationFunction
+linearAF = Derivable id (\_ -> 1)
 
 
 heavyside :: Double -> Double
@@ -100,7 +106,7 @@ tanhAF = Derivable tanh tanh'
 
 fastTanh :: Double -> Double
 fastTanh x | x > 1.92033           = 0.96016
-           | 0 < x && x <= 1.92033 = 0.96016 - 0.26037 * (x - 1.92033)^2
+           | 0 <= x && x <= 1.92033 = 0.96016 - 0.26037 * (x - 1.92033)^2
            | -1.92033 < x && x < 0 = 0.26037 * (x + 1.92033)^2 - 0.96016
            | x <= -1.92033         = -0.96016
 

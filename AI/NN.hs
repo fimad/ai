@@ -1,5 +1,10 @@
 module AI.NN (
     NeuralNet (..)
+  , NodeConnector
+  , createNN
+  , inputLayer
+  , outputLayer
+  , feedForward
   , weightVector
   , feedForwardProp
 )
@@ -26,7 +31,30 @@ data NeuralNet = NeuralNet {
 }
 
 
-type NodeConnector = ([Int],Int,[Int]) -> Int -> Int -> Maybe Double
+-- | A node connector is a function that sets up the connections for every node in a layer to the neurons in the rest of the network.
+type NodeConnector = ([Int],Int,[Int]) -- ^ Which layer are we currently working on
+                   -> Int -- ^ The index of the from neuron
+                   -> Int -- ^ The index of the to neuron
+                   -> Maybe Double -- ^ What the connection should be, 'Nothing' for no connection, 'Just' _ to specify connections.
+
+
+-- | 'NodeConnector' for feed forward neural nets. It will connect each node in the current layer to every node in the next.
+feedForward :: NodeConnector
+feedForward (front,curr,b:back) from to =
+  if sum front + curr < to && to < sum front + curr + b -- if to is in the next layer
+  then Just 0.5
+  else Nothing
+
+
+-- | Creates an input layer with the specified 'NodeConnector'.
+inputLayer :: Int -> NodeConnector -> (Int,ActivationFunction,NodeConnector)
+inputLayer size nc = (size,linearAF,nc)
+
+
+-- | Creates an output layer with the specified 'ActivationFunction'.
+outputLayer :: Int -> ActivationFunction -> (Int,ActivationFunction,NodeConnector)
+outputLayer size af = (size,af,(\_ _ _ -> Nothing))
+
 
 createNN :: [(Int,ActivationFunction,NodeConnector)] -> NeuralNet
 createNN desc =
@@ -63,7 +91,7 @@ createNN desc =
     getPosition i = (map fst front,current,map fst back)
       where
         layersAndSums = zip layers (map sum $ tail . inits $ layers)
-        (front,(current,_):back) = span ((i<) . snd) layersAndSums
+        (front,(current,_):back) = span ((i>) . snd) layersAndSums
 
 
 {-
@@ -84,7 +112,7 @@ feedForwardProp nn input = V.drop (sum . init . layerList $ nn) $ V.constructN s
     size = neuronCount nn
     calcOutput previous =
         if currentIndex < (head . layerList) nn -- if we are working on the input vectors, just copy the value
-          then input V.! currentIndex
+          then af $ input V.! currentIndex
           else af $ sum $ map (\(i,Just w) -> (previous V.! i) * w) weights
       where
         currentIndex = V.length previous
