@@ -1,13 +1,20 @@
 module AI.NN (
     NeuralNet (..)
-  , NeuronConnector
+  , weightVector
+
+  -- * Creating Neural Nets
+  -- | Neural nets are created from 'NetDescription's which are lists of 'LayerDescription's. The helper functions 'inputLayer' and 'outputLayer' exist for creating the input and output layer descriptions. Hidden layers can be created by specifying as a tuple each component of a 'LayerDescription'. The method 'createNN' takes a 'NetDescription' and returns the corresponding 'NeuralNet'.
   , LayerDescription
   , NetDescription
-  , createNN
   , inputLayer
   , outputLayer
+  , createNN
+
+  -- ** Neuron Connectors
+  , NeuronConnector
   , feedForward
-  , weightVector
+
+  -- * Using Nueral Nets
   , feedForwardProp
 )
 where
@@ -22,8 +29,6 @@ import qualified Data.Vector as V
 --TODO Figure out a clean way of integrating the bias node. Maybe just work on getting this working, then hopefully it won't be too much trouble to extend it a bit to add a flag for that?
 --a field for input layer would be useful
 
---for the description function, maybe do ([Int],Int,[Int]) -> Int -> Int -> Maybe Double. where it's previous layers current layer, future layers and it needs to return a funtion that takes a from and a to and returns a weight. It will only be fed froms from the current layer, but will be fed the entire span for to's.
-
 -- | A structure containing all the settings of a neural net including topology and weights.
 data NeuralNet = NeuralNet {
     activationVector :: V.Vector ActivationFunction -- ^ n sized vector of activation functions
@@ -33,16 +38,16 @@ data NeuralNet = NeuralNet {
 }
 
 
--- | A node connector is a function that sets up the connections for every node in a layer to the neurons in the rest of the network.
+-- | A neuron connector is a function that sets up the output connections from every node in a layer to the neurons in the rest of the network.
 type NeuronConnector = ([Int],Int,[Int]) -- ^ Which layer are we currently working on
                    -> Int -- ^ The index of the from neuron
                    -> Int -- ^ The index of the to neuron
-                   -> Maybe Double -- ^ What the connection should be, 'Nothing' for no connection, 'Just' _ to specify connections.
+                   -> Maybe Double -- ^ What the connection should be, 'Nothing' for no connection, while 'Just' specifies connections.
 
--- | Describes the layout of a single layer in a neural net.
+-- | Describes the layout of a single layer in a neural net. A description of a layer consists of the number of neurons in the layer, each neuron's 'ActivationFunction', and a 'NeuronConnector' which is responsible for making the output connections for each neuron in the layer.
 type LayerDescription = (Int,ActivationFunction,NeuronConnector)
 
--- | The total description of a neural net is a list of each of its layers.
+-- | The total description of a neural net is a list of descriptions of each layer (see 'LayerDescription').
 type NetDescription = [LayerDescription]
 
 
@@ -55,16 +60,17 @@ feedForward (front,curr,b:back) from to =
 feedForward _ _ _ = Nothing -- if this is the last layer make no connections
 
 
--- | Creates an input layer with the specified 'NeuronConnector'.
+-- | A convenience function for creating the input layer of a neural net with the specified size and connector. The activation function used is 'linearAF'.
 inputLayer :: Int -> NeuronConnector -> LayerDescription
 inputLayer size nc = (size,linearAF,nc)
 
 
--- | Creates an output layer with the specified 'ActivationFunction'.
+-- | A convenience function for creating the output layer of a neural net with the specified size and 'ActivationFunction'. It uses a dummy function for the 'NeuronConnector'.
 outputLayer :: Int -> ActivationFunction -> LayerDescription
 outputLayer size af = (size,af,(\_ _ _ -> Nothing))
 
 
+-- | Creates a neural net from a 'NetDescription'.
 createNN :: NetDescription -> NeuralNet
 createNN desc =
     NeuralNet {

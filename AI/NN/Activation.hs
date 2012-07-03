@@ -1,5 +1,5 @@
 module AI.NN.Activation (
-    -- | This module contains all the prewritten activation functions, and defines an encapsulating datatype.
+    -- | This module contains all the prewritten activation functions, and defines an encapsulating datatype. The activation function of a neuron is the function that is used to map from the neurons input to it's output. Commonly used activation functions are 'sigmoidAF' and 'tanhAF'.
     ActivationFunction (..)
   , activate
   , alwaysOnAF
