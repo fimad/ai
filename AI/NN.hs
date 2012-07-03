@@ -1,6 +1,8 @@
 module AI.NN (
     NeuralNet (..)
-  , NodeConnector
+  , NeuronConnector
+  , LayerDescription
+  , NetDescription
   , createNN
   , inputLayer
   , outputLayer
@@ -32,31 +34,38 @@ data NeuralNet = NeuralNet {
 
 
 -- | A node connector is a function that sets up the connections for every node in a layer to the neurons in the rest of the network.
-type NodeConnector = ([Int],Int,[Int]) -- ^ Which layer are we currently working on
+type NeuronConnector = ([Int],Int,[Int]) -- ^ Which layer are we currently working on
                    -> Int -- ^ The index of the from neuron
                    -> Int -- ^ The index of the to neuron
                    -> Maybe Double -- ^ What the connection should be, 'Nothing' for no connection, 'Just' _ to specify connections.
 
+-- | Describes the layout of a single layer in a neural net.
+type LayerDescription = (Int,ActivationFunction,NeuronConnector)
 
--- | 'NodeConnector' for feed forward neural nets. It will connect each node in the current layer to every node in the next.
-feedForward :: NodeConnector
+-- | The total description of a neural net is a list of each of its layers.
+type NetDescription = [LayerDescription]
+
+
+-- | 'NeuronConnector' for feed forward neural nets. It will connect each node in the current layer to every node in the next.
+feedForward :: NeuronConnector
 feedForward (front,curr,b:back) from to =
-  if sum front + curr < to && to < sum front + curr + b -- if to is in the next layer
+  if sum front + curr <= to && to < sum front + curr + b -- if to is in the next layer
   then Just 0.5
   else Nothing
+feedForward _ _ _ = Nothing -- if this is the last layer make no connections
 
 
--- | Creates an input layer with the specified 'NodeConnector'.
-inputLayer :: Int -> NodeConnector -> (Int,ActivationFunction,NodeConnector)
+-- | Creates an input layer with the specified 'NeuronConnector'.
+inputLayer :: Int -> NeuronConnector -> LayerDescription
 inputLayer size nc = (size,linearAF,nc)
 
 
 -- | Creates an output layer with the specified 'ActivationFunction'.
-outputLayer :: Int -> ActivationFunction -> (Int,ActivationFunction,NodeConnector)
+outputLayer :: Int -> ActivationFunction -> LayerDescription
 outputLayer size af = (size,af,(\_ _ _ -> Nothing))
 
 
-createNN :: [(Int,ActivationFunction,NodeConnector)] -> NeuralNet
+createNN :: NetDescription -> NeuralNet
 createNN desc =
     NeuralNet {
         activationVector = createActivationVector
@@ -74,7 +83,7 @@ createNN desc =
     createWeightMatrix :: V.Vector (Maybe Double)
     createWeightMatrix = do
       V.concat $ (do
-        to <- [0..size]
+        to <- [0..(size-1)]
         [do
           (nc,from) <- V.fromList . concat . snd
                     $ mapAccumL
@@ -91,7 +100,7 @@ createNN desc =
     getPosition i = (map fst front,current,map fst back)
       where
         layersAndSums = zip layers (map sum $ tail . inits $ layers)
-        (front,(current,_):back) = span ((i>) . snd) layersAndSums
+        (front,(current,_):back) = span ((i>=) . snd) layersAndSums
 
 
 {-
