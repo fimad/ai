@@ -2,6 +2,7 @@ module AI.NN.Training (
     -- * Training Samples
     Example
 --  , TrainingSamples (..)
+  , testNN
 
     -- * Termination Conditions and Error Functions
   , TerminationCondition (..)
@@ -30,6 +31,10 @@ import qualified Data.Vector as V
 -- | A single example of input and desired output.
 type Example = (V.Vector Double, V.Vector Double)
 
+-- | Calculates the total error for a neural net on a given testing set.
+testNN :: SpecificErrorFunction -> TotalErrorFunction -> EvalFunction -> NeuralNet -> [Example] -> Double
+testNN se te eval nn examples = te $ map (\(input,target) -> se target $ eval nn input) examples
+
 {-
 -- | A collection of 'Example's to train on.
 data TrainingSamples = TrainingSamples {
@@ -40,18 +45,18 @@ data TrainingSamples = TrainingSamples {
 
 -- | Termination conditions determine when training has been completed
 data TerminationCondition = TerminationCondition {
-    maxEpochs :: Maybe Int -- ^ The maximum number of iterations to run. 'Nothing' meaning that there is no bound (default is 'Just 100')
+    maxEpochs :: Maybe Int -- ^ The maximum number of iterations to run. 'Nothing' meaning that there is no bound (default is 'Just 1000')
   , specificError :: SpecificErrorFunction -- ^ The function for calculating the specific error (default is 'rootMeanSquareError')
   , totalError :: TotalErrorFunction -- ^ How the specific errors are combined into a single value (default is 'accumulatedError')
-  , maxTotalError :: Double -- ^ Train the network until the total error falls below this threshold (default is 0.1, but this should be changed according to the problem domain)
+  , maxTotalError :: Double -- ^ Train the network until the total error falls below this threshold (default is 0.001, but this should probably be changed according to the problem domain)
 }
 
 defaultTermination :: TerminationCondition
 defaultTermination = TerminationCondition {
-    maxEpochs = Just 100
+    maxEpochs = Just 1000
   , specificError = rootMeanSquareError
   , totalError = accumulatedError
-  , maxTotalError = 0.1
+  , maxTotalError = 0.001
 }
 
 
@@ -94,13 +99,14 @@ euclideanError target output = sqrt
 trainBackPropagation ::
      TerminationCondition -- ^ Determines when the training is complete
   -> Double -- ^ The learning rate
-  -> (NeuralNet -> V.Vector Double -> (V.Vector (Double,Double), V.Vector Double)) -- ^ The eval function to use
+  -> VerboseEvalFunction -- ^ The eval function to use
   -> [Example] -- ^ Examples to train on
   -> NeuralNet -- ^ The starting network
-  -> (Int,(Double,NeuralNet))
+--  -> (Int,(Double,NeuralNet))
+  -> NeuralNet
 trainBackPropagation termination learningRate eval examples nn =
-      --snd . snd . head
-      head
+      snd . snd . head
+      --head
     $ dropWhile 
       (\ (i,(error,_))
         -> error > maxTotalError termination -- stop at acceptable error
@@ -119,24 +125,6 @@ trainBackPropagation termination learningRate eval examples nn =
         errorsAndNNs = scanr (\e (error,nn) -> e nn) (0,nn) $ map trainSample examples
         newNN = snd $ head errorsAndNNs
         error = totalError termination $ map fst errorsAndNNs
-
-    {- --These don't work correctly, and training online seems to work well enough
-    doEpochOffline :: NeuralNet -> (Double,NeuralNet)
-    doEpochOffline nn = (error,newNN)
-      where
-        runResults = map (runSample nn) examples
-        error = totalError termination $ map (\(_,_,x) -> x) runResults
-        outputError = foldl1 (V.zipWith (+)) $ map (\(_,x,_) -> x) runResults
-        allNeurons = foldl1 (V.zipWith (\(a1,a2) (b1,b2) -> (a1+b1,a2+b2))) $ map (\(x,_,_) -> x) runResults
-        newNN = adjustWeights nn allNeurons outputError
-
-    runSample :: NeuralNet -> Example -> (V.Vector (Double,Double), V.Vector Double, Double)
-    runSample nn (input,target) = (allNeurons,outputError,error)
-      where
-        (allNeurons,output) = eval nn input
-        outputError = V.zipWith (-) target output
-        error = (specificError termination) target output
-    -}
     
     trainSample :: Example -> NeuralNet -> (Double,NeuralNet)
     trainSample (input,target) nn = (error,newNN)
