@@ -7,6 +7,8 @@ import Text.Printf
 import System.Random
 import qualified Data.Vector as V
 
+-- This example shows the training of a neural net to calculate the binary functions 'xor', 'or', and 'and'
+
 -- Examples are lists of input output pairs
 
 xorExamples = [
@@ -58,7 +60,7 @@ trainLogic name nn examples = do
   --using the verbose version of the feedForward evaluation method
   let trainedNN = trainBackPropagation defaultTermination 0.8 feedForward' examples nn
 
-  --show the values
+  --show how the net performs on the examples
   sequence_ $ map (showExample trainedNN) examples
 
   --Report the error
