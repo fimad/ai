@@ -111,8 +111,8 @@ fastTanh x | x > 1.92033           = 0.96016
            | x <= -1.92033         = -0.96016
 
 fastTanh' :: Double -> Double
-fastTanh' x = 1-y*y
-  where y = fastTanh' x
+fastTanh' x = 1 - y * y
+  where y = fastTanh x
 
 -- | An approximation of 'tanhAF' that is faster to compute.
 fastTanhAF :: ActivationFunction
