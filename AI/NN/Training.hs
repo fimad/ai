@@ -1,6 +1,9 @@
 module AI.NN.Training (
+  -- * Training Methods
+    trainBackPropagation
+
     -- * Training Samples
-    Example
+  , Example
 --  , TrainingSamples (..)
   , testNN
 
@@ -16,9 +19,6 @@ module AI.NN.Training (
   , squareError
   , rootMeanSquareError
   , euclideanError
-
-  -- * Training Methods
-  , trainBackPropagation
 )
 where
 
@@ -114,7 +114,9 @@ trainBackPropagation termination learningRate eval examples nn =
       )
     $ tail
     $ scanl (\(i,(_,nn')) epoch -> (i+1,epoch nn')) (0,(0,nn))
-    $ repeat doEpochOnline
+    $ if isJust maxIt
+      then replicate (fromJust maxIt + 1) doEpochOnline
+      else repeat doEpochOnline
   where
 
     maxIt = maxEpochs termination
@@ -171,3 +173,5 @@ trainBackPropagation termination learningRate eval examples nn =
             to = V.length partialDelta `div` neuronCount nn
             deltaWeight = learningRate * (snd $ allNeurons V.! from) * (deltas V.! to)
 
+-- | Trains a neural net using the resilient backpropagation algorithm. In some instances (deep networks in particular, this method may result in a shorter training time than backpropagation). Like 'trainBackPropagation', one of the requirements to using this method of training is that every neuron in the network uses an 'ActivationFunction' that has a derivitive.
+--trainRprop

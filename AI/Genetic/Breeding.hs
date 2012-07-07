@@ -1,6 +1,7 @@
 module AI.Genetic.Breeding (
   -- | Each breeding function implements a simple genetic operation, and may be composed with others to create more powerful operations.
-    crossover
+    BreedingFunction
+  , crossover
   , mutation
 )
 where
@@ -10,8 +11,11 @@ import Control.Monad
 import System.Random
 import Data.Tuple as T
 
+-- | Takes a list of parents and produces a list of children.
+type BreedingFunction b = (StdGen, [[b]]) -> (StdGen, [[b]])
+
 -- | Performs simple k-point crossover breeding. N-1 pivots in each parent [b] are chosen, where N is the number of parents. Children are then created from all combinations of resulting parent segments.
-crossover :: (Eq b) => (StdGen, [[b]]) -> (StdGen, [[b]])
+crossover :: (Eq b) => BreedingFunction b
 crossover (gen,parents) = (gen',children)
   where
     (gen',dividedParents) = splitParents gen (length parents - 1) parents
@@ -35,8 +39,7 @@ crossover (gen,parents) = (gen',children)
 -- | Randomly mutates genes at a given frequency.
 mutation :: (Random b)
   => Double -- ^ Frequency at which genes are mutated, must be between 0 and 1. By partially applying the frequency, the result is a composable genetic operation.
-  -> (StdGen, [[b]])
-  -> (StdGen, [[b]])
+  -> BreedingFunction b
 mutation frequency (gen,parents) = mapAccumL (\gen' bs -> mapAccumL mutateGene gen' bs) gen parents
   where
     --mutateGene :: StdGen -> b -> (StdGen,b)

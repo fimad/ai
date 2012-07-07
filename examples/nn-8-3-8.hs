@@ -18,9 +18,16 @@ examples = map (\x -> (x,x)) [
     , V.fromList [0,0,0,0,0,1,0,0]
     , V.fromList [0,0,0,0,0,0,1,0]
     , V.fromList [0,0,0,0,0,0,0,1]
+
+  {-
+    , V.fromList [1,0,1,0,1,0,1,0]
+    , V.fromList [0,1,0,1,0,1,0,1]
+    , V.fromList [1,1,0,0,0,0,1,1]
+    , V.fromList [0,0,1,1,1,1,0,0]
+  -}
   ]
 
-myTest = testNN rootMeanSquareError accumulatedError feedForward
+myTest = testNN rootMeanSquareError accumulatedError linearEval
 
 -- helper functions for pretty printing examples
 showVector :: V.Vector Double -> String
@@ -33,7 +40,7 @@ showVector vector =
 showExample :: NeuralNet -> Example -> IO ()
 showExample nn example = do
   let (input,_) = example
-  let output = feedForward nn input
+  let output = linearEval nn input
   printf "\t%s -> %s\n" (showVector input) (showVector output)
 
 main = do
@@ -41,7 +48,7 @@ main = do
   let initialNN = createNN gen $ describeFeedForward 8 8 [3] sigmoidAF
 
   let terminationCondition = defaultTermination {maxEpochs = Just 1000, maxTotalError = 0.1}
-  let trainedNN = trainBackPropagation terminationCondition 0.8 feedForward' examples initialNN
+  let trainedNN = trainBackPropagation terminationCondition 0.8 linearEvalV examples initialNN
 
   --show how the net performs on the examples
   sequence_ $ map (showExample trainedNN) examples

@@ -1,6 +1,7 @@
 module AI.Genetic.Selection (
-  -- | Each breeding function implements a simple genetic operation, and may be composed with others to create more powerful operations.
-    rouletteWheel
+  -- | Selection functions are responsible for choosing parents for breeding from the general population.
+    SelectionFunction
+  , rouletteWheel
   , tournament
 )
 where
@@ -9,8 +10,11 @@ import Data.List
 import System.Random
 import System.Random.Shuffle
 
+-- | Takes a population that has been scored by the fitness function and chooses a member and returns the remaining population.
+type SelectionFunction b = (StdGen,[([b],Double)]) -> ((StdGen,[([b],Double)]),[b]) 
+
 -- | Roulette Wheel selection randomly choses an individual where the likelihood of being chosen is proportional to its fitness.
-rouletteWheel :: (StdGen,[([b],Double)]) -> ((StdGen,[([b],Double)]),[b])
+rouletteWheel :: SelectionFunction b
 rouletteWheel (g,population) = ((g',population'), parent)
   where
     (fitnessSum, populationDistribution) = mapAccumL (\s (d,f) -> (f+s,(d,f+s))) 0 population
@@ -24,8 +28,7 @@ rouletteWheel (g,population) = ((g',population'), parent)
 -- | Tournament selection chooses a random subset from the population and then selects the most fit individual in the subset. See <https://en.wikipedia.org/wiki/Tournament_selection> for a more detailed description.
 tournament :: (Eq b) => Int -- ^ The size of the randomly selected subset of the population.
   -> Double -- ^ Probability of choosing the most fit individual.
-  -> (StdGen,[([b],Double)])
-  -> ((StdGen,[([b],Double)]),[b])
+  -> SelectionFunction b
 tournament k p (gen,population) = ((gen',population'),parent)
   where
     sortedSubSet = sortBy (\(_,a) (_,b) -> compare b a) $ take k $ shuffle' population (length population) gen

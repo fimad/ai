@@ -68,6 +68,6 @@ initialPopulation gen = fastRandomPopulation gen 5 100
 
 main = do
   gen <- getStdGen
-  let solution = evolve gen settings (fitnessMap (fitness 125)) (initialPopulation gen)
+  let solution = evolveI gen settings (fitnessMap (fitness 125)) (initialPopulation gen)
   putStrLn $ show $ solution
   putStrLn $ show $ eval solution

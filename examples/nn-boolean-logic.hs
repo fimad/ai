@@ -33,7 +33,7 @@ andExamples = [
   ] 
 
 -- partially apply the error and the eval functions
-myTest = testNN rootMeanSquareError accumulatedError feedForward
+myTest = testNN rootMeanSquareError accumulatedError linearEval
 
 
 -- helper functions for pretty printing examples
@@ -47,7 +47,7 @@ showVector vector =
 showExample :: NeuralNet -> Example -> IO ()
 showExample nn example = do
   let (input,_) = example
-  let output = feedForward nn input
+  let output = linearEval nn input
   printf "\t%s -> %s\n" (showVector input) (showVector output)
 
 
@@ -57,8 +57,8 @@ trainLogic name nn examples = do
   putStrLn $ "Training " ++ name ++ "..."
   --trains using back propagation using the default termination conditions
   --with a learning rate of 0.8
-  --using the verbose version of the feedForward evaluation method
-  let trainedNN = trainBackPropagation defaultTermination 0.8 feedForward' examples nn
+  --using the verbose version of the linear evaluation method
+  let trainedNN = trainBackPropagation defaultTermination 0.8 linearEvalV examples nn
 
   --show how the net performs on the examples
   sequence_ $ map (showExample trainedNN) examples

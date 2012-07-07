@@ -19,8 +19,8 @@ module AI.NN (
   -- | After a network has been created and trained (see "AI.NN.Training") various inputs can be evaluated using 'EvalFunction's. 'VerboseEvalFunction's are identical to their less verbose counterparts but along with the resulting output also return the internal state of the network. They exist because they are needed by some training methods.
   , EvalFunction
   , VerboseEvalFunction
-  , feedForward
-  , feedForward'
+  , linearEval
+  , linearEvalV
 
   -- * Misc.
   -- | These functions are likely only going to be of use to those writing their own training or evaluation functions.
@@ -192,9 +192,9 @@ type EvalFunction =
   -> V.Vector Double -- ^ output
 
 
--- | A verbose version of 'feedForwardEval'
-feedForward':: VerboseEvalFunction
-feedForward' nn input = (allNeurons, outputNeurons)
+-- | A verbose version of 'linearEval'
+linearEvalV:: VerboseEvalFunction
+linearEvalV nn input = (allNeurons, outputNeurons)
   where
     size = neuronCount nn
     allNeurons = V.constructN size calcInputAndOutput 
@@ -217,6 +217,6 @@ feedForward' nn input = (allNeurons, outputNeurons)
         af = activate $ activationVector nn V.! currentIndex
         weights = filter (isJust . snd) $ zip [0..] $ V.toList $ weightVector nn currentIndex
 
--- | A fast eval function that only works on feed forward like networks with no recurrance.
-feedForward :: EvalFunction
-feedForward nn input = snd $ feedForward' nn input
+-- | A fast eval function that only works on forward propagating networks with no recurrance (ie. feed foward).
+linearEval :: EvalFunction
+linearEval nn input = snd $ linearEvalV nn input
